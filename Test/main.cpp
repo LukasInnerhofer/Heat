@@ -1,5 +1,6 @@
 #include "heat.hpp"
 
+#include <atomic>
 #include <iostream>
 #include <thread>
 #include <chrono>
@@ -7,7 +8,10 @@
 
 #include "SFML/Graphics.hpp"
 
-static constexpr size_t nVectors = 120;
+static constexpr size_t nVectors = 500;
+static constexpr double conductivity = 0.0001;
+static constexpr size_t frameRate = 60;
+static constexpr size_t logPeriod = 1000;
 
 int main()
 {
@@ -15,26 +19,34 @@ int main()
 
     for(int i = 0; i < nVectors; ++i)
     {
-        function.push_back({ i / static_cast<double>(nVectors), std::cos(i * 6 * 3.1415 / nVectors) });
+        function.push_back({ i / static_cast<double>(nVectors), std::sin(8 * 3.14 * i / static_cast<double>(nVectors)) });
     }
 
-    Heat heat = Heat(function, 0.001);
+    Heat heat = Heat(function, conductivity);
 
     std::thread timerThread;
     std::chrono::time_point<std::chrono::steady_clock> startTime;
+    std::atomic<double> frameTime = 1.0 / frameRate;
+    std::thread logThread = std::thread([](std::atomic<double>& frameTime) {
+        for (;;)
+        {
+            std::thread timerThread = std::thread([]() {std::this_thread::sleep_for(std::chrono::milliseconds(logPeriod)); });
+            std::cout << frameTime << "\n";
+            timerThread.join();
+        }
+        
+        }, std::ref(frameTime));
+
     sf::RenderWindow window;
-    window.create(sf::VideoMode(640, 480), "Heat");
+    window.create(sf::VideoMode(1600, 900), "Heat");
     sf::Event event;
     sf::RectangleShape pixel({ 1,1 });
     pixel.setFillColor({ 255,255,255 });
-    size_t logCounter = 0;
 
     while(window.isOpen())
     {
         startTime = std::chrono::steady_clock::now();
-        timerThread = std::thread([]() { std::this_thread::sleep_for(std::chrono::milliseconds(13)); });
-
-        timerThread.join();
+        timerThread = std::thread([]() { std::this_thread::sleep_for(std::chrono::milliseconds(1000 / frameRate)); });
 
         while (window.pollEvent(event))
         {
@@ -46,24 +58,24 @@ int main()
             }
         }
 
-        heat.step(0.016);
+        heat.step(frameTime);
 
         window.clear();
 
         for (Vector2d vector : heat.getVectors())
         {
-            pixel.setPosition({ static_cast<float>(window.getSize().x * vector.x_), static_cast<float>((window.getSize().y / 2) * (vector.y_ + 1)) });
+            pixel.setPosition({ static_cast<float>(window.getSize().x * vector.x_), static_cast<float>((window.getSize().y / 2) * (1 - vector.y_)) });
             window.draw(pixel);
         }
 
         window.display();
 
-        if (logCounter++ == 60)
-        {
-            logCounter = 0;
-            std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - startTime).count() << std::endl;
-        }
+        timerThread.join();
+
+        frameTime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - startTime).count() / 1000.0;
     }
+
+    logThread.detach();
 
     return 0;
 }

@@ -11,22 +11,25 @@ void Heat::step(const double &dt)
     double curvature;
     double dy;
 
-    if (vectors_.size() >= 3)
+    if (isolated_)
     {
-        // Enforce boundary conditions:
-        // ux(0)=0, ux(L)=0
-        vectors_[0].y_ = vectors_[1].y_;
-        vectors_[vectors_.size() - 1].y_ = vectors_[vectors_.size() - 2].y_;
-
-        for (std::vector<Vector2d>::iterator itVectors = vectors_.begin();
-            itVectors != vectors_.end();
-            ++itVectors)
+        if (vectors_.size() >= 3)
         {
-            curvature = derivative().derivative().getVectors()[(itVectors - vectors_.begin())].y_;
-
-            dy = k_ * curvature * dt;
-
-            itVectors->y_ += dy;
+            // Enforce boundary conditions for isolated start and end points:
+            // ux(0)=0, ux(L)=0
+            vectors_[0].y_ = vectors_[1].y_;
+            vectors_[vectors_.size() - 1].y_ = vectors_[vectors_.size() - 2].y_;
         }
+    }
+
+    for (std::vector<Vector2d>::iterator itVectors = vectors_.begin();
+        itVectors != vectors_.end();
+        ++itVectors)
+    {
+        curvature = derivative().derivative().getVectors()[(itVectors - vectors_.begin())].y_;
+
+        dy = k_ * curvature * dt;
+
+        itVectors->y_ += dy;
     }
 }

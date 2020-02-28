@@ -3,9 +3,12 @@
 
 #include "discrete_function.hpp"
 
+#include <cmath>
+
 class Heat : public DiscreteFunction
 {
-    double k_ = 1;
+    double k_ = 1;          /**< Conductivity */
+    bool isolated_ = true;  /**< Are start and end points thermally isolated?*/
 
 public:
     Heat();
